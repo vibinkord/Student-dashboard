@@ -1,0 +1,56 @@
+version: '3.8'
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: student_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: student_dashboard
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: student_backend
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override DATABASE_URI to use docker service name instead of localhost
+      DATABASE_URI: postgresql://postgres:postgres@db:5432/student_dashboard
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+
+  # Frontend React App
+  frontend:
+    build:
+      context: ./frontend/student_management
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_BASE=http://localhost:5000/api
+    container_name: student_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

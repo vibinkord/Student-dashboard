@@ -1,0 +1,2 @@
+cd frontend/student_management
+npm start
